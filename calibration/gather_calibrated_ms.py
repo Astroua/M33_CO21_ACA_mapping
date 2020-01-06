@@ -54,21 +54,21 @@ for key in brick_uid:
             continue
 
         # Find the MS
-        ms_name = glob(f"{full_path}/calibrated/working/*.ms")
+        ms_names = glob(f"{full_path}/calibrated/working/*.ms")
 
-        if not len(ms_name) == 1:
+        if len(ms_names) == 0:
             print(f"Something wrong in the reduction for {key} {proj_name} {sci_ous}")
             continue
 
-        ms_name = ms_name[0]
+        for ms_name in ms_names:
 
-        # Give new name
-        new_ms_name = f"{key}_{proj_name}_{os.path.basename(ms_name)}"
+            # Give new name
+            new_ms_name = f"{key}_{proj_name}_{os.path.basename(ms_name)}"
 
-        out_full = os.path.join(out_path, new_ms_name)
+            out_full = os.path.join(out_path, new_ms_name)
 
-        if os.path.exists(out_full):
-            print("MS has already been copied over.")
-            continue
+            if os.path.exists(out_full):
+                print("MS has already been copied over.")
+                continue
 
-        os.system(f"cp -r {ms_name} {out_full}")
+            os.system(f"cp -r {ms_name} {out_full}")

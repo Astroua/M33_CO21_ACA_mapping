@@ -119,6 +119,12 @@ def find_linefree_freq(ms_name, vel_map, spw_dict,
         line_chans = np.logical_and(chanfreqs_spw > freq_min,
                                     chanfreqs_spw < freq_max)
 
+        if debug_printing:
+            print("Valid line channels found: {0}".format(line_chans))
+
+        if not line_chans.any():
+            raise ValueError("Invalid range found for {}".format(line_name))
+
         chan_min = np.where(line_chans)[0].min()
         chan_max = np.where(line_chans)[0].max()
 
@@ -138,3 +144,41 @@ def find_linefree_freq(ms_name, vel_map, spw_dict,
             linefree_range[line_name].append(highs)
 
     return linefree_range
+
+
+def get_mosaic_centre(ms_name, return_string=True, sourceid=None):
+    '''
+    Assuming a fully sampled mosaic, take the median
+    as the phase centre.
+    '''
+
+    tb.open(ms_name + "/FIELD")
+    ptgs = tb.getcol("PHASE_DIR").squeeze()
+
+    ras, decs = (ptgs * u.rad).to(u.deg)
+
+    if sourceid is not None:
+        valids = tb.getcol('SOURCE_ID') == sourceid
+
+        ras = ras[valids]
+        decs = decs[valids]
+
+        if ras.size == 0:
+            raise ValueError("No fields with given sourceid.")
+
+    tb.close()
+
+    med_ra = np.median(ras)
+    med_dec = np.median(decs)
+
+    if return_string:
+
+        med_ptg = SkyCoord(med_ra, med_dec, frame='icrs')
+
+        ptg_str = "ICRS "
+        ptg_str += med_ptg.ra.to_string() + " "
+        ptg_str += med_ptg.dec.to_string()
+
+        return ptg_str
+
+    return med_ra, med_dec

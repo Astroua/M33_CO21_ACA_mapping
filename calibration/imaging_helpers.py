@@ -146,19 +146,37 @@ def find_linefree_freq(ms_name, vel_map, spw_dict,
     return linefree_range
 
 
-def get_mosaic_centre(ms_name, return_string=True, sourceid=None):
+def get_mosaic_centre(ms_name, return_string=True,
+                      field_name='M33'):
     '''
     Assuming a fully sampled mosaic, take the median
     as the phase centre.
     '''
+
+    try:
+        # CASA 6
+        import casatools
+        # iatool = casatools.image()
+        tb = casatools.table()
+    except ImportError:
+        try:
+            from taskinit import tbtool
+            # iatool = iatool()
+            tb = tbtool()
+        except ImportError:
+            raise ImportError("Could not import CASA (casac).")
 
     tb.open(ms_name + "/FIELD")
     ptgs = tb.getcol("PHASE_DIR").squeeze()
 
     ras, decs = (ptgs * u.rad).to(u.deg)
 
-    if sourceid is not None:
-        valids = tb.getcol('SOURCE_ID') == sourceid
+    if field_name is not None:
+
+        field_names = tb.getcol('NAME')
+
+        valids = np.array([True if field_name in name else False
+                           for name in field_names])
 
         ras = ras[valids]
         decs = decs[valids]

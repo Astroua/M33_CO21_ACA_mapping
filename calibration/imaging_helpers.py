@@ -196,6 +196,10 @@ def get_mosaic_centre(ms_name, return_string=True,
         ptg_str = "ICRS "
         ptg_str += med_ptg.to_string('hmsdms')
 
+        # tclean was rejecting this b/c of a string type
+        # change? Anyways this seems to fix it.
+        ptg_str = str(ptg_str)
+
         return ptg_str
 
     return med_ra, med_dec

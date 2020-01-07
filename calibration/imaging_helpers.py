@@ -176,8 +176,7 @@ def get_mosaic_centre(ms_name, return_string=True, sourceid=None):
         med_ptg = SkyCoord(med_ra, med_dec, frame='icrs')
 
         ptg_str = "ICRS "
-        ptg_str += med_ptg.ra.to_string() + " "
-        ptg_str += med_ptg.dec.to_string()
+        ptg_str += med_ptg.to_string('hmsdms')
 
         return ptg_str
 

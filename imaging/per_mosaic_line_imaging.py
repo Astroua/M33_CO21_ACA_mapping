@@ -238,6 +238,16 @@ if not os.path.exists(clean_residual_name):
         else:
             os.system('cp -r {0} {1}'.format(orig_image, copy_image))
 
+    # Finally we check whether any cleaning was actually done. If not,
+    # we skip stage 2 (i.e., there's no clear signal, esp. given the
+    # low masking requirements).
+
+    if stage1_tclean_dict['iterdone'] == 0:
+        # Empty auto-mask. Avoid stage 2.
+        stage2_summary_name = cleanimage_name + ".stage2.results_dict.npy"
+        np.save(stage2_summary_name, stage1_tclean_dict)
+
+
 # Stage 2: Single-scale clean to 1-sigma.
 
 # Skip if stage2 summary file is saved

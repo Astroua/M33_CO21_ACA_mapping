@@ -20,7 +20,7 @@ for brick_num in {1..3}; do
     pids=
     for tile_num in {1..5}; do
 
-        logfile_name="casa_M33_ACA_Brick${brick_num}Tile${tile_num}_${line}_${spec_width}_$(date "+%Y%m%d-%H%M%S").log"
+        logfile_name="casa_M33_ACA_Brick${brick_num}Tile${tile_num}_Continuum_$(date "+%Y%m%d-%H%M%S").log"
 
         (${casa_path} --nologger --nogui --log2term --nocrashreport --logfile ${data_path}/per_mosaic_imaging/logs/${logfile_name} -c ${code_path}/per_mosaic_continuum_imaging.py ${brick_num} ${tile_num} ${rerun_existing}) &
         pids+=" $!"

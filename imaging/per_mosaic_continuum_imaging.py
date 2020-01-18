@@ -11,7 +11,7 @@ import astropy.units as u
 import sys
 import numpy as np
 
-from tasks import tclean
+from tasks import tclean, impbcor
 
 osjoin = os.path.join
 
@@ -238,10 +238,9 @@ if not os.path.exists(clean_residual_name):
     if not os.path.exists(stage1_path):
         os.mkdir(stage1_path)
 
-    cleanimage_name_stage1 = "{0}/{1}/{2}_{3}_{4}.stage1".format(cont_image_path,
+    cleanimage_name_stage1 = "{0}/{1}/{2}_{3}.stage1".format(cont_image_path,
                                                                  'stage1', prefix,
-                                                                 line_name,
-                                                                 spec_width)
+                                                                 line_name)
 
     for suff in ['image', 'model', 'mask', 'pb', 'psf',
                  'residual', 'weight', 'sumwt',
@@ -322,3 +321,8 @@ if not os.path.exists(stage2_summary_name):
                )
 
     np.save(stage2_summary_name, stage2_tclean_dict)
+
+impbcor(imagename="{}.image".format(cleanimage_name),
+        pbimage="{}.pb".format(cleanimage_name),
+        outfile="{}.image.pbcor".format(cleanimage_name),
+        overwrite=True)

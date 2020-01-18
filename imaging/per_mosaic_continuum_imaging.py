@@ -1,0 +1,324 @@
+
+'''
+Image continuum using the excluded regions from contsub
+'''
+
+import os
+from glob import glob
+from spectral_cube import Projection
+from astropy.io import fits
+import astropy.units as u
+import sys
+import numpy as np
+
+from tasks import tclean
+
+osjoin = os.path.join
+
+repo_path = os.path.expanduser("~/ownCloud/project_code/M33_ALMA_2017.1.00901.S/")
+
+constants_script = os.path.join(repo_path, "constants.py")
+exec(compile(open(constants_script, "rb").read(), constants_script, 'exec'))
+helpers_script = os.path.join(repo_path, "calibration/imaging_helpers.py")
+exec(compile(open(helpers_script, "rb").read(), helpers_script, 'exec'))
+
+orig_dir = os.getcwd()
+
+data_path = os.path.expanduser("~/bigdata/ekoch/M33/ALMA/ACA_Band6/")
+
+brick_num = int(sys.argv[-3])
+tile_num = int(sys.argv[-2])
+redo_existing_imaging = True if sys.argv[-1] == "True" else False
+
+print("Inputs : {}".format(sys.argv[-3:]))
+
+# Load in the 12CO 30-m moment 1 map to define line-free channels
+co_iram_mom1_file = os.path.expanduser("~/bigdata/ekoch/M33/co21/m33.co21_iram.mom1.fits")
+co_mom1_hdu = fits.open(co_iram_mom1_file)
+co_mom1 = Projection.from_hdu(co_mom1_hdu)
+
+if brick_num < 1 or brick_num > 3:
+    raise ValueError("Brick number must be 1, 2, or 3.")
+
+if tile_num < 1 or tile_num > 5:
+    raise ValueError("Brick number must between 1 and 5.")
+
+# Check whether a reduced MS exists for this mosaic.
+prefix = "Brick{0}Tile{1}".format(brick_num, tile_num)
+
+ms_names = glob("{0}/reduced/{1}*.ms".format(data_path, prefix))
+
+if len(ms_names) == 0:
+    print("No reduced MS found for {0}".format(prefix))
+    sys.exit(0)
+
+line_name = 'Continuum'
+
+# Check output path exists
+mosaic_path = os.path.join(data_path, '')
+
+image_path = osjoin(data_path, 'per_mosaic_imaging')
+if not os.path.exists(image_path):
+    os.mkdir(image_path)
+
+cont_image_path = osjoin(image_path, line_name)
+if not os.path.exists(cont_image_path):
+    os.mkdir(cont_image_path)
+
+# Find the pointing centre for the mosaic
+ptg_centre = get_mosaic_centre(ms_names[0],
+                               return_string=True,
+                               field_name='M33')
+
+pb_limit = 0.05
+
+imaging_params = {'cellsize': '1arcsec', 'imsize': [512, 512]}
+
+# Get continuum ranges
+ms_name = ms_names[0]
+if "2019" in ms_name:
+    spw_setup = spw_setup_2019
+elif "2017" in ms_name:
+    spw_setup = spw_setup_2017
+else:
+    raise ValueError("Cannot find project code in the ms name"
+                     " {0}. You need to check this!"
+                     .format(ms_name))
+
+# Define line free channels based on the 30-m 12CO(2-1)
+linefree_chans = \
+    find_linefree_freq(ms_name, co_mom1, spw_setup,
+                       field_name='M33',
+                       pb_size=27 * u.arcsec,
+                       debug_printing=False)
+
+# Convert this to a spw_str
+spw_str = ""
+for n, line in enumerate(linefree_chans):
+    spw_num = spw_setup[line]['spw_num']
+    linefree_str = ["{0}~{1}".format(*ch) for ch in linefree_chans[line]]
+    if len(linefree_chans) > 1:
+        linefree_str = ";".join(linefree_str)
+    else:
+        linefree_str = linefree_str[0]
+
+    spw_str += spw_num + ":" + linefree_str
+
+    spw_str += ","
+
+spw_str = spw_str[:-1]
+
+# Stage 0: Dirty cube
+
+stage1_path = osjoin(cont_image_path, 'stage1')
+if not os.path.exists(stage1_path):
+    os.mkdir(stage1_path)
+
+dirtyimage_name = "{0}/dirty/{1}_{2}_dirty".format(cont_image_path, prefix,
+                                                   line_name)
+
+# Check if the residual exists. If so, remove it when needed. Otherwise, skip.
+dirty_residual_name = "{}.residual".format(dirtyimage_name)
+
+if os.path.exists(dirty_residual_name) and redo_existing_imaging:
+    # Delete existing:
+    for suff in ['image', 'model', 'mask', 'pb', 'psf',
+                 'residual', 'weight', 'sumwt', "results_dict.npy"]:
+
+        orig_image = "{0}.{1}".format(dirtyimage_name, suff)
+
+        os.system("rm -r {}".format(orig_image))
+
+if not os.path.exists(dirty_residual_name):
+
+    dirty_tclean_dict = \
+        tclean(vis=ms_names,
+               field='M33',
+               spw=spw_str,
+               intent='OBSERVE_TARGET#ON_SOURCE',
+               datacolumn='corrected',
+               imagename=dirtyimage_name,
+               imsize=imaging_params['imsize'],
+               cell=imaging_params['cellsize'],
+               phasecenter=ptg_centre,
+               nchan=1,
+               specmode='mfs',
+               outframe='LSRK',
+               gridder='mosaic',
+               chanchunks=-1,
+               mosweight=True,
+               pblimit=pb_limit,
+               pbmask=pb_limit,
+               restoration=False,
+               pbcor=False,
+               weighting='briggs',
+               robust=0.5,
+               niter=0,
+               usemask='pb',
+               interactive=0,
+               savemodel='none',
+               parallel=False,
+               calcres=True,
+               calcpsf=True,
+               smallscalebias=0.6
+               )
+
+    # Save dictionary as numpy file
+    np.save(dirtyimage_name + ".results_dict.npy", dirty_tclean_dict)
+
+# Stage 1: MS clean down to ~4 sigma.
+cleanimage_name = "{0}/{1}_{2}".format(cont_image_path, prefix,
+                                       line_name)
+
+clean_residual_name = "{}.residual".format(cleanimage_name)
+
+if os.path.exists(clean_residual_name) and redo_existing_imaging:
+    # Delete existing:
+    for suff in ['image', 'model', 'mask', 'pb', 'psf',
+                 'residual', 'weight', 'sumwt', 'stage1.results_dict.npy',
+                 'stage2.results_dict.npy']:
+
+        orig_image = "{0}.{1}".format(dirtyimage_name, suff)
+
+        os.system("rm -r {}".format(orig_image))
+
+if not os.path.exists(clean_residual_name):
+
+    stage1_tclean_dict = \
+        tclean(vis=ms_names,
+               field='M33',
+               spw=spw_str,
+               intent='OBSERVE_TARGET#ON_SOURCE',
+               datacolumn='corrected',
+               imagename=cleanimage_name,
+               imsize=imaging_params['imsize'],
+               cell=imaging_params['cellsize'],
+               phasecenter=ptg_centre,
+               nchan=1,
+               specmode='mfs',
+               outframe='LSRK',
+               gridder='mosaic',
+               chanchunks=-1,
+               mosweight=True,
+               pblimit=pb_limit,
+               pbmask=pb_limit,
+               deconvolver='multiscale',
+               scales=[0, 5],
+               restoration=True,
+               pbcor=False,
+               weighting='briggs',
+               robust=0.5,
+               niter=int(1e7),
+               cycleniter=100,  # Force many major cycles
+               nsigma=4.,
+               usemask='auto-multithresh',
+               sidelobethreshold=1.0,
+               noisethreshold=3.0,
+               lownoisethreshold=1.5,
+               negativethreshold=0.0,
+               minbeamfrac=0.1,
+               growiterations=75,
+               dogrowprune=True,
+               minpercentchange=1.0,
+               fastnoise=False,
+               threshold='',
+               interactive=0,
+               savemodel='none',
+               parallel=False,
+               calcres=True,
+               calcpsf=True,
+               smallscalebias=0.6
+               )
+
+    np.save(cleanimage_name + ".stage1.results_dict.npy", stage1_tclean_dict)
+
+    # Copy stage 1 into its own file
+
+    stage1_path = osjoin(cont_image_path, 'stage1')
+    if not os.path.exists(stage1_path):
+        os.mkdir(stage1_path)
+
+    cleanimage_name_stage1 = "{0}/{1}/{2}_{3}_{4}.stage1".format(cont_image_path,
+                                                                 'stage1', prefix,
+                                                                 line_name,
+                                                                 spec_width)
+
+    for suff in ['image', 'model', 'mask', 'pb', 'psf',
+                 'residual', 'weight', 'sumwt',
+                 'stage1.results_dict.npy']:
+
+        orig_image = "{0}.{1}".format(cleanimage_name, suff)
+        copy_image = "{0}.{1}".format(cleanimage_name_stage1, suff)
+
+        if os.path.exists(copy_image):
+            os.system("rm -r {}".format(copy_image))
+
+        if ".npy" in suff:
+            os.system('mv {0} {1}'.format(orig_image, stage1_path))
+        else:
+            os.system('cp -r {0} {1}'.format(orig_image, copy_image))
+
+    # Finally we check whether any cleaning was actually done. If not,
+    # we skip stage 2 (i.e., there's no clear signal, esp. given the
+    # low masking requirements).
+
+    if stage1_tclean_dict['iterdone'] == 0:
+        # Empty auto-mask. Avoid stage 2.
+        stage2_summary_name = cleanimage_name + ".stage2.results_dict.npy"
+        np.save(stage2_summary_name, stage1_tclean_dict)
+
+
+# Stage 2: Single-scale clean to 1-sigma.
+
+# Skip if stage2 summary file is saved
+stage2_summary_name = cleanimage_name + ".stage2.results_dict.npy"
+
+if not os.path.exists(stage2_summary_name):
+
+    stage2_tclean_dict = \
+        tclean(vis=ms_names,
+               field='M33',
+               spw=spw_str,
+               intent='OBSERVE_TARGET#ON_SOURCE',
+               datacolumn='corrected',
+               imagename=cleanimage_name,
+               imsize=imaging_params['imsize'],
+               cell=imaging_params['cellsize'],
+               phasecenter=ptg_centre,
+               nchan=1,
+               specmode='mfs',
+               outframe='LSRK',
+               gridder='mosaic',
+               chanchunks=-1,
+               mosweight=True,
+               pblimit=pb_limit,
+               pbmask=pb_limit,
+               deconvolver='hogbom',
+               restoration=True,
+               pbcor=False,
+               weighting='briggs',
+               robust=0.5,
+               niter=int(1e7),
+               cycleniter=100,  # Force many major cycles
+               nsigma=1.,
+               # usemask='auto-multithresh',
+               usemask='user',  # Use auto-mask from last step.
+               sidelobethreshold=1.0,
+               noisethreshold=3.0,
+               lownoisethreshold=1.5,
+               negativethreshold=0.0,
+               minbeamfrac=0.1,
+               growiterations=75,
+               dogrowprune=True,
+               minpercentchange=1.0,
+               fastnoise=False,
+               threshold='',
+               interactive=0,
+               savemodel='none',
+               parallel=False,
+               calcres=False,
+               calcpsf=False,
+               smallscalebias=0.6
+               )
+
+    np.save(stage2_summary_name, stage2_tclean_dict)

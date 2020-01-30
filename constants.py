@@ -32,7 +32,7 @@ brick_uid = {"Brick1Tile1": [{'proj': '2019.1.01182.S', 'name': 'M33_l_06_7M',
                               'sci_ous': 'A001_X1465_X1670'}],
              "Brick1Tile2": [{'proj': '2019.1.01182.S', 'name': 'M33_k_06_7M',
                               'memb_ous': 'A001_X1465_X166e ',
-                              'sci_ous': 'NODELIVERY'}],
+                              'sci_ous': 'A001_X1465_X166c'}],
              "Brick1Tile3": [{'proj': '2019.1.01182.S', 'name': 'M33_j_06_7M',
                               'memb_ous': 'A001_X1465_X166a',
                               'sci_ous': 'A001_X1465_X1668'},
@@ -53,7 +53,7 @@ brick_uid = {"Brick1Tile1": [{'proj': '2019.1.01182.S', 'name': 'M33_l_06_7M',
                               'sci_ous': 'A001_X1465_X165c'}],
              "Brick2Tile3": [{'proj': '2019.1.01182.S', 'name': 'M33_f_06_7M',
                               'memb_ous': 'A001_X1465_X165a',
-                              'sci_ous': 'NODELIVERY'}],
+                              'sci_ous': 'A001_X1465_X1658'}],
              "Brick2Tile4": [{'proj': '2019.1.01182.S', 'name': 'M33_e_06_7M',
                               'memb_ous': 'A001_X1465_X1656',
                               'sci_ous': 'A001_X1465_X1654'}],
@@ -81,6 +81,12 @@ brick_uid = {"Brick1Tile1": [{'proj': '2019.1.01182.S', 'name': 'M33_l_06_7M',
 casa_pipeline_versions = {'2017.1.00901.S': 'casa-release-5.4.0-68.el6',
                           '2019.1.01182.S': 'casa-pipeline-release-5.6.1-8.el7'}
 
+# casa versions used for the imaging
+# EWK: Don't want to use 5.4.1 but newer versions fail when too many files
+# are open (regardless of `ulimit` setting)
+casa_imaging_versions = {'2017.1.00901.S': "casa-release-5.4.1-32.el7",
+                         '2019.1.01182.S': "casa-release-5.4.1-32.el7"}
+
 # `vel_pad` is the padding used to define line-free regions
 # This is more important for the 2017 setup with the narrow bandwidths
 
@@ -88,7 +94,7 @@ spw_setup_2019 = {'12CO21': {'spw_num': '16',
                              'bwidth': 0.5 * u.GHz,
                              'nchan': 2048,
                              'vel_pad': 25 * u.km / u.s,
-                             'restfreq': 232.538 * u.GHz},
+                             'restfreq': 230.538 * u.GHz},
                   'Continuum_232': {'spw_num': '18',
                                     'bwidth': 2 * u.GHz,
                                     'nchan': 128,

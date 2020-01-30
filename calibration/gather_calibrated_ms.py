@@ -26,6 +26,8 @@ if not os.path.exists(out_path):
 
 for key in brick_uid:
 
+    print(f"Copying over observations of {key}")
+
     maps_info = brick_uid[key]
 
     # Loop through observations of each mapping region

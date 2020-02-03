@@ -304,3 +304,12 @@ if not os.path.exists(stage2_summary_name):
                )
 
     np.save(stage2_summary_name, stage2_tclean_dict)
+
+# Make a pbcor image with the final image
+pbcor_image = cleanimage_name + ".image.pbcor"
+
+if not os.path.exists(pbcor_image):
+
+  impbcor(imagename=cleanimage_name + ".image",
+          pbimage=cleanimage_name + ".pb",
+          outfile=cleanimage_name + ".image.pbcor")

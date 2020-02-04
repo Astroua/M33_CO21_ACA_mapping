@@ -203,3 +203,53 @@ def get_mosaic_centre(ms_name, return_string=True,
         return ptg_str
 
     return med_ra, med_dec
+
+
+def estimate_noise(imagename, linefree_range,
+                   noise_function=np.nanstd):
+    '''
+    Calculate the noise in a cube in line-free channels.
+
+    Should be run on *non-*pb corrected images so the spatial noise
+    is flat!
+
+    Estimate will also skip empty channels that do not have any data.
+    '''
+
+    try:
+        # CASA 6
+        import casatools
+        ia = casatools.image()
+    except ImportError:
+        try:
+            from taskinit import iatool
+            iatool = iatool()
+        except ImportError:
+            raise ImportError("Could not import CASA (casac).")
+
+
+    ia.open(imagename)
+    data = ia.getchunk().squeeze()
+    ia.close()
+    ia.done()
+
+    noise_data = np.empty((1,))
+
+    for chan_range in linefree_range:
+        for chan in range(chan_range[0], chan_range[1]):
+            if chan >= data.shape[-1]:
+                continue
+
+            # Skip empty channels
+            if np.isnan(data[..., chan]).all():
+                continue
+
+            if (data[..., chan] == 0.).all():
+                continue
+
+            valid_mask = np.logical_and(data[..., chan] != 0.,
+                                        np.isfinite(data[..., chan]))
+
+            noise_data = np.append(noise_data, data[..., chan][valid_mask])
+
+    return noise_function(noise_data)

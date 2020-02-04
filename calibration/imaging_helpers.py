@@ -146,6 +146,73 @@ def find_linefree_freq(ms_name, vel_map, spw_dict,
     return linefree_range
 
 
+def find_linefree_freq_cube(image_name, vel_map, spw_dict,
+                            vel_width=40 * u.km / u.s,
+                            field_name='M33',
+                            debug_printing=False):
+    '''
+    Use a velocity map (e.g., from HI) to define line-free channels
+    in an MS.
+
+    Parameters
+    ----------
+    cube_name : str
+        Name of the cube to open.
+    vel_map : spectral_cube.Projection
+        Line velocity map to use extents from.
+    spw_dict : dict
+        Dictionary of SPWs numbers (as keys) and the
+        rest frequency. Continuum SPWs can be set to
+        the brightest line (e.g., CO) to exclude those
+        channels.
+    '''
+
+    from spectral_cube import SpecralCube
+    import astropy.units as u
+
+    cube = SpecralCube.read(image_name, format='casa')
+
+    if not cube.spectral_unit.is_equivalent(u.km / u.s):
+        cube = cube.with_spectral_unit(u.km / u.s,
+                                       velocity_convention='radio')
+
+    min_ra = cube.longitude_extrema.min()
+    max_ra = cube.longitude_extrema.max()
+    min_dec = cube.latitude_extrema.min()
+    max_dec = cube.latitude_extrema.max()
+
+    vel_map_box = vel_map.subimage(ylo=min_dec, yhi=max_dec,
+                                   xlo=max_ra, xhi=min_ra).to(u.km / u.s)
+
+    vel_min = np.nanmin(vel_map_box.quantity) - vel_pad.to(u.km / u.s) / 2.
+    vel_max = np.nanmax(vel_map_box.quantity) + vel_pad.to(u.km / u.s) / 2.
+
+    if vel_max < vel_min:
+        vel_max, vel_min = vel_min, vel_max
+
+    line_chans = np.logical_and(cube.spectral_axis > freq_min,
+                                cube.spectral_axis < freq_max)
+
+    if not line_chans.any():
+        raise ValueError("Invalid range found for {}".format(line_name))
+
+    chan_min = np.where(line_chans)[0].min()
+    chan_max = np.where(line_chans)[0].max()
+
+    # Make the line-free channel ranges
+    linefree_range = []
+
+    if chan_min > 0:
+        lows = [0, chan_min]
+        linefree_range[line_name].append(lows)
+
+    if chan_max < cube.shape[0] - 1:
+        highs = [chan_max, cube.shape[0]]
+        linefree_range[line_name].append(highs)
+
+    return linefree_range
+
+
 def get_mosaic_centre(ms_name, return_string=True,
                       field_name='M33'):
     '''

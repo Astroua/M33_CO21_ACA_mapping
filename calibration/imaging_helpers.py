@@ -146,9 +146,8 @@ def find_linefree_freq(ms_name, vel_map, spw_dict,
     return linefree_range
 
 
-def find_linefree_freq_cube(image_name, vel_map, spw_dict,
-                            vel_width=40 * u.km / u.s,
-                            field_name='M33',
+def find_linefree_chan_cube(image_name, vel_map,
+                            vel_pad=40 * u.km / u.s,
                             debug_printing=False):
     '''
     Use a velocity map (e.g., from HI) to define line-free channels
@@ -167,12 +166,12 @@ def find_linefree_freq_cube(image_name, vel_map, spw_dict,
         channels.
     '''
 
-    from spectral_cube import SpecralCube
+    from spectral_cube import SpectralCube
     import astropy.units as u
 
-    cube = SpecralCube.read(image_name, format='casa')
+    cube = SpectralCube.read(image_name, format='casa')
 
-    if not cube.spectral_unit.is_equivalent(u.km / u.s):
+    if not cube.spectral_axis.unit.is_equivalent(u.km / u.s):
         cube = cube.with_spectral_unit(u.km / u.s,
                                        velocity_convention='radio')
 
@@ -190,8 +189,8 @@ def find_linefree_freq_cube(image_name, vel_map, spw_dict,
     if vel_max < vel_min:
         vel_max, vel_min = vel_min, vel_max
 
-    line_chans = np.logical_and(cube.spectral_axis > freq_min,
-                                cube.spectral_axis < freq_max)
+    line_chans = np.logical_and(cube.spectral_axis > vel_min,
+                                cube.spectral_axis < vel_max)
 
     if not line_chans.any():
         raise ValueError("Invalid range found for {}".format(line_name))
@@ -204,11 +203,11 @@ def find_linefree_freq_cube(image_name, vel_map, spw_dict,
 
     if chan_min > 0:
         lows = [0, chan_min]
-        linefree_range[line_name].append(lows)
+        linefree_range.append(lows)
 
     if chan_max < cube.shape[0] - 1:
         highs = [chan_max, cube.shape[0]]
-        linefree_range[line_name].append(highs)
+        linefree_range.append(highs)
 
     return linefree_range
 

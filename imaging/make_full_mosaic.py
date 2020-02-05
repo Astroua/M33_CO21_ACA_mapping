@@ -6,7 +6,7 @@ Create linear mosaic of all fields.
 import sys
 import os
 from glob import glob
-from spectral_cube import Projection
+from spectral_cube import Projection, SpectralCube
 from astropy.io import fits
 
 from casatasks import casalog, exportfits
@@ -274,10 +274,21 @@ if cleanup_temps:
     os.system(f"rm -r {outfile}.temp")
 
 # Export to FITS.
+outfile_fits = f'{outfile}.fits'
 
 exportfits(imagename=outfile,
-           fitsimage=f'{outfile}.fits',
+           fitsimage=outfile_fits,
            velocity=True,
            optical=False,
            dropdeg=True,
            history=False)
+
+# Lastly, convert to K from Jy/beam.
+outfile_fits_K = f'{outfile}_K.fits'
+
+cube = SpectralCube.read(outfile_fits)
+cube.allow_huge_operations = True
+cube = cube.to(u.K)
+cube.write(outfile_fits_K)
+
+del cube

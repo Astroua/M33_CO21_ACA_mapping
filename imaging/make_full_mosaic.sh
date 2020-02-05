@@ -18,11 +18,13 @@ overwrite=False
 
 cleanup_temps=True
 
+# Make versions with the smallest round beam
+# and the smallest elliptical beam
 round_beam_convolution=( "True" "False" )
-exclude_asymms=( "True" "False" )
-# round_beam_convolution=( "False" )
-# exclude_asymms=( "False" )
 
+# Make versions with and without the mosaics that have
+# highly asymmetric beams
+exclude_asymms=( "True" "False" )
 
 # CO imaging
 lines=( "12CO21" "13CO21" "C18O21")

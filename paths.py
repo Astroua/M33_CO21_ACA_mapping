@@ -17,14 +17,14 @@ def name_return_check(filename, path, no_check=False):
 
 
 if socket.gethostname() == 'ewk':
-    root = os.path.expanduser('~/ownCloud/code_development/M33_ALMA_2017.1.00901.S/')
+    root = os.path.expanduser('~/ownCloud/project_code/M33_ALMA_2017.1.00901.S/')
     # data_path = "/mnt/MyRAID/M33/"
     data_path = os.path.expanduser("~/bigdata/ekoch/M33")
 elif "segfault" == socket.gethostname():
-    root = os.path.expanduser("~/ownCloud/code_development/M33_ALMA_2017.1.00901.S/")
+    root = os.path.expanduser("~/ownCloud/project_code/M33_ALMA_2017.1.00901.S/")
     data_path = "/mnt/bigdata/ekoch/M33"
 elif "ewk-laptop" == socket.gethostname():
-    root = os.path.expanduser("~/ownCloud/code_development/M33_ALMA_2017.1.00901.S/")
+    root = os.path.expanduser("~/ownCloud/project_code/M33_ALMA_2017.1.00901.S/")
     data_path = "/mnt/storage/M33/"
 
 imaging_path = partial(name_return_check,

@@ -9,7 +9,7 @@ from glob import glob
 from spectral_cube import Projection
 from astropy.io import fits
 
-from casatasks import casalog
+from casatasks import casalog, exportfits
 
 osjoin = os.path.join
 
@@ -272,3 +272,12 @@ if cleanup_temps:
     os.system(f"rm -r {outfile}.mask")
     os.system(f"rm -r {outfile}.sum")
     os.system(f"rm -r {outfile}.temp")
+
+# Export to FITS.
+
+exportfits(imagename=outfile,
+           fitsimage=f'{outfile}.fits',
+           velocity=True,
+           optical=False,
+           dropdeg=True,
+           history=False)

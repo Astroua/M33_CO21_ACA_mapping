@@ -282,22 +282,32 @@ def estimate_noise(imagename, linefree_range,
     Estimate will also skip empty channels that do not have any data.
     '''
 
-    try:
-        # CASA 6
-        import casatools
-        ia = casatools.image()
-    except ImportError:
+    if imagename.endswith(".image"):
         try:
-            from taskinit import iatool
-            iatool = iatool()
+            # CASA 6
+            import casatools
+            ia = casatools.image()
         except ImportError:
-            raise ImportError("Could not import CASA (casac).")
+            try:
+                from taskinit import iatool
+                iatool = iatool()
+            except ImportError:
+                raise ImportError("Could not import CASA (casac).")
 
 
-    ia.open(imagename)
-    data = ia.getchunk().squeeze()
-    ia.close()
-    ia.done()
+        ia.open(imagename)
+        data = ia.getchunk().squeeze()
+        ia.close()
+        ia.done()
+
+    elif imagename.lower().endswith(".fits"):
+
+        cube = SpectralCube.read(imagename)
+        data = cube.filled_data[:].value
+        del cube
+
+    else:
+        raise ValueError("Unsure what kind of file this is.")
 
     noise_data = np.empty((1,))
 

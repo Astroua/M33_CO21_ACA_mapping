@@ -25,9 +25,10 @@ params_script = os.path.join(repo_path, "imaging/line_imaging_params.py")
 exec(compile(open(params_script, "rb").read(), params_script, 'exec'))
 
 
-data_path = os.path.expanduser("~/bigdata/ekoch/M33/ALMA/ACA_Band6/")
+# data_path = os.path.expanduser("~/bigdata/ekoch/M33/ALMA/ACA_Band6/")
+data_path = os.path.expanduser("~/storage/M33/ALMA/ACA_Band6/")
 
-mosaic_path = osjoin(data_path, 'full_mosaic')
+mosaic_path = osjoin(data_path, 'full_mosaic_test')
 
 if not os.path.exists(mosaic_path):
     os.mkdir(mosaic_path)
@@ -55,6 +56,12 @@ if line_name not in spw_setup_2019.keys():
 
 if spec_width not in imaging_linedict[line_name].keys():
     raise ValueError("Spec setup not found in list defined in line_imaging_params.py: {0}".format(imaging_linedict.keys()))
+
+# Load in the 12CO 30-m moment 1 map to define line-free channels
+# co_iram_mom1_file = os.path.expanduser("~/bigdata/ekoch/M33/co21/m33.co21_iram.mom1.fits")
+co_iram_mom1_file = os.path.expanduser("~/storage/M33/IRAM/m33.co21_iram.mom1.fits")
+co_mom1_hdu = fits.open(co_iram_mom1_file)
+co_mom1 = Projection.from_hdu(co_mom1_hdu)
 
 
 mosaic_line_path = osjoin(mosaic_path, line_name)
@@ -204,11 +211,6 @@ comm_grid_pbs = \
 # line-free channels to estimate the noise from.
 # Uses estimate_noise from imaging_helpers.py
 
-# Load in the 12CO 30-m moment 1 map to define line-free channels
-co_iram_mom1_file = os.path.expanduser("~/bigdata/ekoch/M33/co21/m33.co21_iram.mom1.fits")
-co_mom1_hdu = fits.open(co_iram_mom1_file)
-co_mom1 = Projection.from_hdu(co_mom1_hdu)
-
 # We'll also build the input dictionary for the final mosaicing
 
 mosaic_dict = {}
@@ -260,7 +262,8 @@ outfile = osjoin(mosaic_line_path,
 mosaic_aligned_data(mosaic_dict,
                     outfile,
                     overwrite=overwrite,
-                    is_pbcorr=True)
+                    is_pbcorr=True,
+                    output_noise_map=True)
 
 # Cleanup temporary files
 
@@ -272,6 +275,7 @@ if cleanup_temps:
     os.system(f"rm -r {outfile}.mask")
     os.system(f"rm -r {outfile}.sum")
     os.system(f"rm -r {outfile}.temp")
+    os.system(f"rm -r {outfile}.temp_noise")
 
 # Export to FITS.
 outfile_fits = f'{outfile}.fits'
@@ -292,3 +296,42 @@ cube = cube.to(u.K)
 cube.write(outfile_fits_K)
 
 del cube
+
+# Remove the original Jy/beam fits file.
+# No need to gave a CASA image and fits file of the
+# same thing.
+if cleanup_temps:
+    os.system(f"rm -r {outfile_fits}")
+
+
+# Convert the noise map to K.
+outfile_noise = f'{outfile}_noise'
+outfile_noise_fits = f'{outfile}_noise.fits'
+
+# Initially this will be a full cube. But the PB
+# channel variations are small. So we'll just grab
+# one channel after converting to FITS
+exportfits(imagename=outfile_noise,
+           fitsimage=outfile_noise_fits,
+           velocity=True,
+           optical=False,
+           dropdeg=True,
+           history=False)
+
+outfile_noise_fits_K = f'{outfile}_noise.fits'
+
+noise_cube = SpectralCube.read(outfile_noise_fits)
+noise_cube = noise_cube.to(u.K)
+
+for chan in range(noise_cube.shape[0]):
+    if not np.isnan(noise_cube.filled_data[chan]).all():
+        noise_plane = noise_cube[chan]
+        break
+
+noise_plane.write(outfile_noise_fits_K)
+
+del noise_cube
+
+# Remove the noise cube
+if cleanup_temps:
+    os.system(f"rm -r {outfile_noise_fits}")

@@ -163,11 +163,6 @@ out_header = build_common_header(comm_beam_imgs,
                                  too_big_pix=1e4,)
 
 
-common_beam_outpath = osjoin(mosaic_line_path, "common_beam_mosaics")
-
-if not os.path.exists(common_beam_outpath):
-    os.mkdir(common_beam_outpath)
-
 comm_grid_imgs = \
     common_grid_for_mosaic(comm_beam_imgs,
                            outfile_suffix=output_suffix,
@@ -274,6 +269,7 @@ if cleanup_temps:
     # Keep the weight file. Remove the rest.
     os.system(f"rm -r {outfile}.mask")
     os.system(f"rm -r {outfile}.sum")
+    os.system(f"rm -r {outfile}.sum_noise")
     os.system(f"rm -r {outfile}.temp")
     os.system(f"rm -r {outfile}.temp_noise")
 
@@ -305,8 +301,8 @@ if cleanup_temps:
 
 
 # Convert the noise map to K.
-outfile_noise = f'{outfile}_noise'
-outfile_noise_fits = f'{outfile}_noise.fits'
+outfile_noise = f'{outfile}.noise'
+outfile_noise_fits = f'{outfile}.noise.fits'
 
 # Initially this will be a full cube. But the PB
 # channel variations are small. So we'll just grab
@@ -318,17 +314,16 @@ exportfits(imagename=outfile_noise,
            dropdeg=True,
            history=False)
 
-outfile_noise_fits_K = f'{outfile}_noise.fits'
+outfile_noise_fits_K = f'{outfile}.noise_K.fits'
 
 noise_cube = SpectralCube.read(outfile_noise_fits)
+noise_cube.allow_huge_operations = True
 noise_cube = noise_cube.to(u.K)
 
-for chan in range(noise_cube.shape[0]):
-    if not np.isnan(noise_cube.filled_data[chan]).all():
-        noise_plane = noise_cube[chan]
-        break
+mid_chan = noise_cube.closest_spectral_channel(-180 * u.km / u.s)
+noise_plane = noise_cube[mid_chan]
 
-noise_plane.write(outfile_noise_fits_K)
+noise_plane.write(outfile_noise_fits_K, overwrite=overwrite)
 
 del noise_cube
 

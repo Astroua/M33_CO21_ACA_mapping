@@ -25,10 +25,10 @@ params_script = os.path.join(repo_path, "imaging/line_imaging_params.py")
 exec(compile(open(params_script, "rb").read(), params_script, 'exec'))
 
 
-# data_path = os.path.expanduser("~/bigdata/ekoch/M33/ALMA/ACA_Band6/")
-data_path = os.path.expanduser("~/storage/M33/ALMA/ACA_Band6/")
+data_path = os.path.expanduser("~/bigdata/ekoch/M33/ALMA/ACA_Band6/")
+# data_path = os.path.expanduser("~/storage/M33/ALMA/ACA_Band6/")
 
-mosaic_path = osjoin(data_path, 'full_mosaic_test')
+mosaic_path = osjoin(data_path, 'full_mosaic')
 
 if not os.path.exists(mosaic_path):
     os.mkdir(mosaic_path)
@@ -58,8 +58,8 @@ if spec_width not in imaging_linedict[line_name].keys():
     raise ValueError("Spec setup not found in list defined in line_imaging_params.py: {0}".format(imaging_linedict.keys()))
 
 # Load in the 12CO 30-m moment 1 map to define line-free channels
-# co_iram_mom1_file = os.path.expanduser("~/bigdata/ekoch/M33/co21/m33.co21_iram.mom1.fits")
-co_iram_mom1_file = os.path.expanduser("~/storage/M33/IRAM/m33.co21_iram.mom1.fits")
+co_iram_mom1_file = os.path.expanduser("~/bigdata/ekoch/M33/co21/m33.co21_iram.mom1.fits")
+# co_iram_mom1_file = os.path.expanduser("~/storage/M33/IRAM/m33.co21_iram.mom1.fits")
 co_mom1_hdu = fits.open(co_iram_mom1_file)
 co_mom1 = Projection.from_hdu(co_mom1_hdu)
 

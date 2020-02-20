@@ -320,10 +320,14 @@ noise_cube = SpectralCube.read(outfile_noise_fits)
 noise_cube.allow_huge_operations = True
 noise_cube = noise_cube.to(u.K)
 
-mid_chan = noise_cube.closest_spectral_channel(-180 * u.km / u.s)
-noise_plane = noise_cube[mid_chan]
+# Since the PB changes are some tiles drop in and out, we
+# need to keep the whole cube instead of a single plane.
+# mid_chan = noise_cube.closest_spectral_channel(-180 * u.km / u.s)
+# noise_plane = noise_cube[mid_chan]
 
-noise_plane.write(outfile_noise_fits_K, overwrite=overwrite)
+# noise_plane.write(outfile_noise_fits_K, overwrite=overwrite)
+
+noise_cube.write(outfile_noise_fits_K, overwrite=overwrite)
 
 del noise_cube
 

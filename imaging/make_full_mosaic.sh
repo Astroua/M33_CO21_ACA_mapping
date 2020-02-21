@@ -1,3 +1,4 @@
+#!/bin/bash
 
 # Make all final mosaic cubes.
 

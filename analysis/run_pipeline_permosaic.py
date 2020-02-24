@@ -19,7 +19,6 @@ constants_script = os.path.join(repo_path, "constants.py")
 exec(compile(open(constants_script, "rb").read(), constants_script, 'exec'))
 img_helper_script = os.path.join(repo_path, "calibration", "imaging_helpers.py")
 exec(compile(open(img_helper_script, "rb").read(), img_helper_script, 'exec'))
-mosaic_script = os.path.join(repo_path, "imaging", "mosaic_tools.py")
 params_script = os.path.join(repo_path, "imaging/line_imaging_params.py")
 exec(compile(open(params_script, "rb").read(), params_script, 'exec'))
 
@@ -32,18 +31,20 @@ co_iram_mom1_file = os.path.expanduser("~/bigdata/ekoch/M33/co21/m33.co21_iram.m
 co_mom1_hdu = fits.open(co_iram_mom1_file)
 co_mom1 = Projection.from_hdu(co_mom1_hdu)
 
-
-min_mask_width = 5.0 * u.km / u.s
+# min_mask_width = 5.0 * u.km / u.s
 
 # Loop through line + spectral widths.
 
 for line in imaging_linedict:
-    # if "CO" not in line:
-    #     continue
+    if "CO" not in line:
+        continue
     for spec in imaging_linedict[line]:
 
         for brick in range(1, 4):
             for tile in range(1, 6):
+
+                # brick = 3
+                # tile = 1
 
                 # See if that image exists.
                 prefix = "Brick{0}Tile{1}".format(brick, tile)
@@ -143,7 +144,8 @@ for line in imaging_linedict:
                 spec_width = np.abs(np.diff(cube.spectral_axis)[0])
                 del cube
 
-                min_chan = int(np.floor((min_mask_width / spec_width).value))
+                # min_chan = int(np.floor((min_mask_width / spec_width).value))
+                min_chan = 3
 
                 log.info(f"Masking and moments for {tile} {line} cube")
 
@@ -153,6 +155,9 @@ for line in imaging_linedict:
                           f"{image_name}. Skipping.")
                     continue
 
+                # One beam over the minimum number of channels.
+                min_pix = kernel.sum() * min_chan
+
                 run_pipeline(fits_image_K,
                              osjoin(permosaic_path, line),
                              masking_kwargs={"method": "ppv_dilation",
@@ -161,11 +166,12 @@ for line in imaging_linedict:
                                              "noise_map": noise_map,
                                              "min_sig": 3,
                                              "max_sig": 5,
-                                             "min_pix": kernel.sum(),
+                                             "min_pix": min_pix,
                                              "min_pix_high": int(0.85 * kernel.sum()),
                                              "min_chan": min_chan,
                                              "verbose": False,
                                              "roll_along_spec": True,
+                                             "expand_spatial": True,
                                              },
                              moment_kwargs={"num_cores": 1,
                                             "verbose": True,
